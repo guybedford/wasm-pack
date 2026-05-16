@@ -1,0 +1,27 @@
+tests/all/emscripten.rs
+  72703bc0a310444a 279-314
+docs/src/emscripten-target.md
+  72703bc0a310444a 135-142
+src/command/build.rs
+  72703bc0a310444a 712-719,729-736,1139,1141-1179,1181,1183-1185,1187-1194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "77b5eca2170c712a4db7c0352cecc7ea76e82fff",
+  "prompts": {
+    "72703bc0a310444a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d6d88039ffeBLbtvWMpNhC4Dn",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Guy Bedford",
+      "messages": [],
+      "total_additions": 115,
+      "total_deletions": 66,
+      "accepted_lines": 115,
+      "overriden_lines": 0
+    }
+  }
+}
