@@ -1,0 +1,61 @@
+src/manifest/mod.rs
+  s_c3d611c0c39aab::t_9bb3fe15146411 544-545,549-584,586,589-597,599,660-663,670,683-699,879-938
+src/generate.rs
+  s_c3d611c0c39aab::t_f47dcced02eecb 13-22,24-33,44-48
+docs/src/SUMMARY.md
+  s_c3d611c0c39aab::t_757bc290bf42cf 15
+src/wasm_opt.rs
+  s_c3d611c0c39aab::t_4bae2127667d52 32-39,47-68
+tests/all/emscripten.rs
+  s_c3d611c0c39aab::t_80f9609c10d06e 1-280
+.github/workflows/test.yml
+  s_a409d33af635c5::t_028e0b6e787e68 57-105
+tests/all/manifest.rs
+  s_c3d611c0c39aab::t_bb10683b60bbe2 47,56,63,72,82,122,152-158,188,222,256,289,304,360,397,432,448,487,505,518,604
+src/command/build.rs
+  s_c3d611c0c39aab::t_70609474aa8a83 48-49,72-74,91,106,315-316,320-324,332-342,416-471,488,493-511,525-577,600-602,608,635-648,680,702-728
+docs/src/commands/new.md
+  s_c3d611c0c39aab::t_4c244966e99f17 36-49
+src/command/test.rs
+  s_c3d611c0c39aab::t_a0310f807b590b 205-219
+src/command/mod.rs
+  s_c3d611c0c39aab::t_3ffc7f28dbdfb0 54-57,139,144-154
+tests/all/utils/fixture.rs
+  s_c3d611c0c39aab::t_be5ae4f58ae2bb 452-643
+wasm-pack-emscripten-template/cargo-generate.toml
+  s_c3d611c0c39aab::t_2ab4ca499975dc 1-2
+wasm-pack-emscripten-template/LICENSE-APACHE
+  s_c3d611c0c39aab::t_f784244bf52988 1-201
+src/build/mod.rs
+  s_c3d611c0c39aab::t_bfbac3f0bc97bc 11,147,192-322
+src/bindgen.rs
+  s_c3d611c0c39aab::t_5630a5f16d8719 124-126
+wasm-pack-emscripten-template/LICENSE-MIT
+  s_c3d611c0c39aab::t_f716872ed5bf8c 1-25
+src/command/generate.rs
+  s_c3d611c0c39aab::t_e03fc3cbe6448a 10-15,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5446c1909a91a7e9a72fe42eaa316d84e7d46f38",
+  "prompts": {},
+  "sessions": {
+    "s_a409d33af635c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_011ba6251ffeZ0ByRd00fWr7Pq",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Guy Bedford <gbedford@cloudflare.com>"
+    },
+    "s_c3d611c0c39aab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_00dcf8d62ffeN67rBCjNMsyMPe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Guy Bedford <gbedford@cloudflare.com>"
+    }
+  }
+}
