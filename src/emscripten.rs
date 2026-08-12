@@ -89,9 +89,29 @@ pub fn ensure_emcc(cache: &Cache, install_permitted: bool) -> Result<EmccEnv> {
     })
 }
 
-/// Whether the wasm-pack-managed install previously completed.
+/// Whether the wasm-pack-managed install previously completed. Checked
+/// per phase (stamp plus key artifact) so a broken phase re-installs.
 fn is_ready(emsdk_dir: &Path, overlay_dir: &Path) -> bool {
-    emsdk_dir.join(READY_STAMP).exists() && overlay_dir.join(READY_STAMP).exists()
+    emsdk_ready(emsdk_dir) && overlay_ready(overlay_dir)
+}
+
+fn emsdk_ready(emsdk_dir: &Path) -> bool {
+    emsdk_dir.join(READY_STAMP).exists() && emsdk_dir.join(".emscripten").exists()
+}
+
+fn overlay_ready(overlay_dir: &Path) -> bool {
+    overlay_dir.join(READY_STAMP).exists() && has_emcc(overlay_dir)
+}
+
+/// Whether `dir` contains the emcc entry point rustc will invoke as the
+/// linker (`emcc.bat` on Windows — rustc hardcodes the name — `emcc`
+/// elsewhere).
+fn has_emcc(dir: &Path) -> bool {
+    if cfg!(windows) {
+        dir.join("emcc.bat").exists()
+    } else {
+        dir.join("emcc").exists()
+    }
 }
 
 /// Build the child-process environment for an emsdk directory, with the
@@ -106,26 +126,37 @@ fn emsdk_env(emsdk_dir: &Path, overlay_dir: Option<&Path>) -> Option<EmccEnv> {
         Some(dir) => dir.to_path_buf(),
         None => emsdk_dir.join("upstream").join("emscripten"),
     };
-    if !emcc_dir.join("emcc").exists() && !emcc_dir.join("emcc.bat").exists() {
+    if !has_emcc(&emcc_dir) {
         return None;
     }
     let mut path_prepends = vec![emcc_dir];
+    let mut vars = vec![
+        ("EM_CONFIG", config.clone()),
+        ("EMSDK", emsdk_dir.to_path_buf()),
+    ];
     // node (and on Windows, python) come from the emsdk; emcc resolves them
     // via the config, but the JS tooling it shells out to needs them on PATH.
     for key in ["NODE_JS", "PYTHON"] {
-        if let Some(bin_dir) = config_tool_dir(emsdk_dir, &config, key) {
-            path_prepends.push(bin_dir);
+        if let Some(tool) = config_tool_path(emsdk_dir, &config, key) {
+            if let Some(bin_dir) = tool.parent() {
+                path_prepends.push(bin_dir.to_path_buf());
+            }
+            // The emcc.bat/run_python launchers resolve python via
+            // EMSDK_PYTHON before falling back to PATH.
+            if key == "PYTHON" {
+                vars.push(("EMSDK_PYTHON", tool));
+            }
         }
     }
     Some(EmccEnv {
         path_prepends,
-        vars: vec![("EM_CONFIG", config), ("EMSDK", emsdk_dir.to_path_buf())],
+        vars,
     })
 }
 
 /// Parse a tool path (e.g. `NODE_JS = '$CFGDIR/node/…/bin/node'`) out of an
-/// emsdk-generated `.emscripten` config and return its containing directory.
-fn config_tool_dir(emsdk_dir: &Path, config: &Path, key: &str) -> Option<PathBuf> {
+/// emsdk-generated `.emscripten` config.
+fn config_tool_path(emsdk_dir: &Path, config: &Path, key: &str) -> Option<PathBuf> {
     let body = std::fs::read_to_string(config).ok()?;
     let line = body.lines().find(|l| {
         l.trim_start()
@@ -133,11 +164,14 @@ fn config_tool_dir(emsdk_dir: &Path, config: &Path, key: &str) -> Option<PathBuf
             .is_some_and(|rest| rest.trim_start().starts_with('='))
     })?;
     let value = line.split('\'').nth(1)?;
-    let path = match value.strip_prefix("$CFGDIR/") {
+    let path = match value
+        .strip_prefix("$CFGDIR/")
+        .or_else(|| value.strip_prefix("$CFGDIR\\"))
+    {
         Some(rel) => emsdk_dir.join(rel),
         None => PathBuf::from(value),
     };
-    path.parent().map(Path::to_path_buf)
+    Some(path)
 }
 
 /// One-time confirmation before the large toolchain download. Skipped (with
@@ -187,7 +221,7 @@ fn manual_install_instructions() -> String {
 fn install(emsdk_dir: &Path, overlay_dir: &Path) -> Result<()> {
     let python = python_bin()?;
 
-    if !emsdk_dir.join(READY_STAMP).exists() {
+    if !emsdk_ready(emsdk_dir) {
         clone_fresh(
             "https://github.com/emscripten-core/emsdk",
             EMSDK_VERSION,
@@ -206,26 +240,46 @@ fn install(emsdk_dir: &Path, overlay_dir: &Path) -> Result<()> {
         std::fs::write(emsdk_dir.join(READY_STAMP), "")?;
     }
 
-    if !overlay_dir.join(READY_STAMP).exists() {
+    if !overlay_ready(overlay_dir) {
         clone_fresh(
             EMSCRIPTEN_OVERLAY_REPO,
             EMSCRIPTEN_OVERLAY_BRANCH,
             overlay_dir,
         )?;
         PBAR.info("Bootstrapping emscripten...");
+        // npm (from the emsdk's node) must be resolvable for bootstrap.
+        let config = emsdk_dir.join(".emscripten");
+        let node_path_env = config_tool_path(emsdk_dir, &config, "NODE_JS")
+            .and_then(|node| node.parent().map(Path::to_path_buf))
+            .map(|node_bin| -> Result<_> {
+                let path_var = std::env::var_os("PATH").unwrap_or_default();
+                let paths = std::iter::once(node_bin)
+                    .chain(std::env::split_paths(&path_var))
+                    .collect::<Vec<_>>();
+                Ok(std::env::join_paths(paths)?)
+            })
+            .transpose()?;
         let mut cmd = Command::new(&python);
         cmd.arg(overlay_dir.join("bootstrap.py"))
             .current_dir(overlay_dir);
-        // npm (from the emsdk's node) must be resolvable for bootstrap.
-        let config = emsdk_dir.join(".emscripten");
-        if let Some(node_bin) = config_tool_dir(emsdk_dir, &config, "NODE_JS") {
-            let path_var = std::env::var_os("PATH").unwrap_or_default();
-            let paths = std::iter::once(node_bin)
-                .chain(std::env::split_paths(&path_var))
-                .collect::<Vec<_>>();
-            cmd.env("PATH", std::env::join_paths(paths)?);
+        if let Some(path_env) = &node_path_env {
+            cmd.env("PATH", path_env);
         }
         crate::child::run(cmd, "bootstrap").context("bootstrapping the emscripten checkout")?;
+        // rustc invokes the linker as `emcc.bat` on Windows, but bootstrap's
+        // default entry points there are pylauncher `.exe`s; `--all`
+        // regenerates them as `.bat` launchers.
+        if cfg!(windows) {
+            let mut cmd = Command::new(&python);
+            cmd.arg(overlay_dir.join("tools/maint/create_entry_points.py"))
+                .arg("--all")
+                .current_dir(overlay_dir);
+            if let Some(path_env) = &node_path_env {
+                cmd.env("PATH", path_env);
+            }
+            crate::child::run(cmd, "create_entry_points")
+                .context("generating emscripten entry points")?;
+        }
         std::fs::write(overlay_dir.join(READY_STAMP), "")?;
     }
 
