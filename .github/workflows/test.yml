@@ -59,7 +59,11 @@ jobs:
     name: Test (emscripten)
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -68,20 +72,6 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "24"
-      - uses: mymindstorm/setup-emsdk@v14
-      # `-sWASM_BINDGEN=auto` (marker-section detection when rustc drives
-      # emcc as the linker) has not landed in an emscripten release yet.
-      # Overlay the branch carrying it on top of emsdk's toolchain until it
-      # does.
-      # TODO: drop this overlay once -sWASM_BINDGEN=auto ships in emsdk.
-      - name: Install emscripten WASM_BINDGEN branch
-        run: |
-          git clone --depth 1 -b cf https://github.com/guybedford/emscripten ~/emscripten
-          # bootstrap runs npm install and generates the emcc/em++ launcher
-          # scripts (they are not tracked in the repo).
-          cd ~/emscripten && python3 bootstrap.py
-          # Drive the branch checkout with emsdk's LLVM/binaryen toolchain.
-          echo "EM_CONFIG=$EMSDK/.emscripten" >> "$GITHUB_ENV"
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
@@ -90,16 +80,13 @@ jobs:
             ~/.cargo/registry/cache
             target
           key: ${{ runner.os }}-emscripten-${{ hashFiles('Cargo.lock') }}
+      # No emsdk setup: the runners have no emcc, so this exercises
+      # wasm-pack's own Emscripten toolchain auto-install into the test
+      # cache (target/test_cache, persisted by the cache step above).
       - name: Run emscripten tests
-        # The branch checkout must shadow emsdk's bundled emcc on PATH.
-        run: |
-          export PATH="$HOME/emscripten:$PATH"
-          which -a emcc
-          ls -la "$HOME/emscripten/emcc" || true
-          emcc --version | head -1
-          emcc --version | head -1 | grep -q -- -git || { echo "wrong emcc resolved"; exit 1; }
-          # Single-threaded: parallel fixtures race the shared tool cache
-          # (cargo-install fallback renames into the same directory).
-          cargo test --test all emscripten:: --locked -- --test-threads=1
+        shell: bash
+        # Single-threaded: parallel fixtures race the shared tool cache
+        # (cargo-install fallback renames into the same directory).
+        run: cargo test --test all emscripten:: --locked -- --test-threads=1
         env:
           RUST_BACKTRACE: 1

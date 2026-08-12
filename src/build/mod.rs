@@ -231,6 +231,7 @@ pub fn cargo_rustc_emscripten(
     bin_name: &str,
     link_args: &[String],
     bindgen_dir: &Path,
+    emcc_env: &crate::emscripten::EmccEnv,
 ) -> Result<(PathBuf, PathBuf)> {
     let msg = format!("{}Compiling to Wasm via emcc...", emoji::CYCLONE);
     PBAR.info(&msg);
@@ -256,12 +257,16 @@ pub fn cargo_rustc_emscripten(
     cmd.env("CARGO_BUILD_TARGET", target_triple);
 
     // emcc locates `wasm-bindgen` via PATH; prepend the version-matched CLI
-    // wasm-pack installed.
+    // wasm-pack installed, plus any emcc toolchain dirs from resolution.
     let path_var = std::env::var_os("PATH").unwrap_or_default();
     let paths = std::iter::once(bindgen_dir.to_path_buf())
+        .chain(emcc_env.path_prepends.iter().cloned())
         .chain(std::env::split_paths(&path_var))
         .collect::<Vec<_>>();
     cmd.env("PATH", std::env::join_paths(paths)?);
+    for (key, value) in &emcc_env.vars {
+        cmd.env(key, value);
+    }
 
     cmd.args(absolutize_extra_options(extra_options)?);
     cmd.arg("--message-format=json");

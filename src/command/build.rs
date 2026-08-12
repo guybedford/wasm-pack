@@ -5,6 +5,7 @@ use crate::build;
 use crate::cache;
 use crate::command::utils::{create_pkg_dir, get_crate_path};
 use crate::emoji;
+use crate::emscripten;
 use crate::install::{self, InstallMode, Tool};
 use crate::license;
 use crate::lockfile::Lockfile;
@@ -47,6 +48,7 @@ pub struct Build {
     wasm_path: Option<String>,
     emscripten_js: Option<PathBuf>,
     emscripten_wasm: Option<PathBuf>,
+    emcc_env: emscripten::EmccEnv,
 }
 
 /// What sort of output we're going to be generating and flags we're invoking
@@ -314,6 +316,7 @@ impl Build {
             wasm_path: None,
             emscripten_js: None,
             emscripten_wasm: None,
+            emcc_env: emscripten::EmccEnv::default(),
         })
     }
 
@@ -492,19 +495,7 @@ impl Build {
 
     fn step_check_for_emcc(&mut self) -> Result<()> {
         info!("Checking for emcc...");
-        if which::which("emcc").is_err() {
-            bail!(
-                "Targeting {} requires `emcc` (the Emscripten compiler driver) on your PATH, \
-                 since rustc drives it as the linker.\n\n\
-                 Install the Emscripten SDK and activate it in your shell:\n\n\
-                 \tgit clone https://github.com/emscripten-core/emsdk\n\
-                 \tcd emsdk\n\
-                 \t./emsdk install latest\n\
-                 \t./emsdk activate latest\n\
-                 \tsource ./emsdk_env.sh\n",
-                self.target_triple,
-            );
-        }
+        self.emcc_env = emscripten::ensure_emcc(&self.cache, self.mode.install_permitted())?;
         info!("emcc is available.");
         Ok(())
     }
@@ -540,6 +531,7 @@ impl Build {
             &bin_name,
             &link_args,
             bindgen_dir,
+            &self.emcc_env,
         )?;
         info!("emcc output built at {js:#?} / {wasm:#?}.");
         self.emscripten_js = Some(js);

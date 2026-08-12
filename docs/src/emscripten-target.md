@@ -55,25 +55,27 @@ own emcc settings (e.g. `-sSTACK_SIZE=8MB`, `-sALLOW_MEMORY_GROWTH`) under
 > **Toolchain status:** `-sWASM_BINDGEN=auto` has not shipped in a tagged
 > emscripten release yet (initial `-sWASM_BINDGEN` integration landed in
 > [emscripten#23493]; the `auto` marker detection used by the cargo-driven
-> flow is pending). Until it ships, use the branch at
+> flow is pending). wasm-pack's auto-installed toolchain uses the branch at
 > [guybedford/emscripten#cf](https://github.com/guybedford/emscripten/tree/cf)
-> on top of an emsdk install, as wasm-pack's CI does.
+> on top of an emsdk install until it ships.
 
 [emscripten#23493]: https://github.com/emscripten-core/emscripten/pull/23493
 
 ## Prerequisites
 
-Install [emsdk](https://emscripten.org/docs/getting_started/downloads.html)
-and activate it before running `wasm-pack`, so `emcc` is on `PATH` for rustc
-to drive as the linker:
+None beyond `git` and `python3` on `PATH`: if no Emscripten toolchain is
+found, wasm-pack offers to install one into its cache (a one-time ~1.3 GB
+download) and applies it process-scoped to the build — no shell activation
+needed. An existing toolchain is preferred when present, checked in order:
 
-```sh
-git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
-cd ~/emsdk
-./emsdk install latest
-./emsdk activate latest
-source ./emsdk_env.sh
-```
+1. `emcc` on `PATH`
+2. an activated emsdk via the `EMSDK` environment variable
+3. an activated emsdk at `~/emsdk`
+4. the wasm-pack-managed install
+
+Note that until `-sWASM_BINDGEN=auto` ships in an emscripten release, a
+stock emsdk toolchain (options 1–3) needs the branch above overlaid on top;
+the wasm-pack-managed install includes it.
 
 Your crate needs `wasm-bindgen >= 0.2.122`, which ships the emscripten
 output mode and the marker section.
