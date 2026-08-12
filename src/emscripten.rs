@@ -262,24 +262,13 @@ fn install(emsdk_dir: &Path, overlay_dir: &Path) -> Result<()> {
         let mut cmd = Command::new(&python);
         cmd.arg(overlay_dir.join("bootstrap.py"))
             .current_dir(overlay_dir);
+        // rustc invokes the linker as `emcc.bat` on Windows; without this,
+        // bootstrap generates pylauncher `.exe` entry points instead.
+        cmd.env("EM_USE_BAT_FILES", "1");
         if let Some(path_env) = &node_path_env {
             cmd.env("PATH", path_env);
         }
         crate::child::run(cmd, "bootstrap").context("bootstrapping the emscripten checkout")?;
-        // rustc invokes the linker as `emcc.bat` on Windows, but bootstrap's
-        // default entry points there are pylauncher `.exe`s; `--all`
-        // regenerates them as `.bat` launchers.
-        if cfg!(windows) {
-            let mut cmd = Command::new(&python);
-            cmd.arg(overlay_dir.join("tools/maint/create_entry_points.py"))
-                .arg("--all")
-                .current_dir(overlay_dir);
-            if let Some(path_env) = &node_path_env {
-                cmd.env("PATH", path_env);
-            }
-            crate::child::run(cmd, "create_entry_points")
-                .context("generating emscripten entry points")?;
-        }
         std::fs::write(overlay_dir.join(READY_STAMP), "")?;
     }
 
