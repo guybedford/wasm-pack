@@ -87,6 +87,6 @@ jobs:
         shell: bash
         # Single-threaded: parallel fixtures race the shared tool cache
         # (cargo-install fallback renames into the same directory).
-        run: cargo test --test all emscripten:: --locked -- --test-threads=1
+        run: "cargo test --test all emscripten:: --locked -- --test-threads=1"
         env:
           RUST_BACKTRACE: 1
