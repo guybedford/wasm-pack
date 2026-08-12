@@ -1,0 +1,19 @@
+tests/all/emscripten.rs
+  s_c3d611c0c39aab::t_e4cd383776ba2c 5-11,25-27,29-30,138,178,204,221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bdc59c7799030193def5c6a01d89c73bc51a6d64",
+  "prompts": {},
+  "sessions": {
+    "s_c3d611c0c39aab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_00dcf8d62ffeN67rBCjNMsyMPe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Guy Bedford <gbedford@cloudflare.com>"
+    }
+  }
+}
