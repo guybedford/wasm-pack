@@ -1,0 +1,33 @@
+docs/src/emscripten-target.md
+  s_84d29a51f15e6e::t_3fab935721a678 58,60,66-69,71-78
+src/build/mod.rs
+  s_84d29a51f15e6e::t_894b82cde843ed 234,260,263,267-269
+src/command/build.rs
+  s_c3d611c0c39aab::t_c63b9251fd64db 8,51,319,498,534
+src/emscripten.rs
+  s_84d29a51f15e6e::t_47408cb204284e 1-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "517ccb1a3d28446e3ddf6494abd92fbc4c365cd6",
+  "prompts": {},
+  "sessions": {
+    "s_84d29a51f15e6e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_00da284edffemDNQI0Emqn4qwK",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Guy Bedford <gbedford@cloudflare.com>"
+    },
+    "s_c3d611c0c39aab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_00dcf8d62ffeN67rBCjNMsyMPe",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Guy Bedford <gbedford@cloudflare.com>"
+    }
+  }
+}
