@@ -2,10 +2,13 @@
 //! `wasm32-unknown-emscripten` target.
 //!
 //! Strategy:
-//!   1. Detect whether `emcc` is reachable. If not, skip with an explanatory
-//!      message — contributors without emsdk can still run the rest of the
-//!      suite. CI installs emsdk (plus the emscripten branch carrying
-//!      `-sWASM_BINDGEN=auto`) before running these.
+//!   1. Run only when `WASM_PACK_TEST_EMSCRIPTEN=1` (skip with an
+//!      explanatory message otherwise): with no toolchain present these
+//!      tests trigger wasm-pack's Emscripten auto-install (~1.3 GB into the
+//!      test cache), which contributors running the general suite should
+//!      not pay for implicitly. CI sets the variable in a dedicated
+//!      single-threaded job on runners without emcc, exercising the
+//!      auto-install path itself.
 //!   2. For each supported wasm-pack `--target` value build the
 //!      `emscripten_hello_world` fixture and exercise the full
 //!      #[wasm_bindgen] surface from Node by importing the produced ES
@@ -19,26 +22,12 @@ use assert_cmd::prelude::*;
 use std::path::Path;
 use std::process::Command;
 
-/// Returns true if `emcc` is reachable (either on PATH or via `$EMSDK`).
-fn emcc_available() -> bool {
-    if which::which("emcc").is_ok() {
-        return true;
-    }
-    if let Ok(emsdk) = std::env::var("EMSDK") {
-        return Path::new(&emsdk).join("upstream/emscripten/emcc").exists();
-    }
-    false
-}
-
-/// Skip the calling test (with an explanatory message) if emcc isn't
-/// available. CI is expected to install emsdk before running tests.
-macro_rules! skip_without_emcc {
+/// Skip the calling test unless emscripten testing is opted into via
+/// `WASM_PACK_TEST_EMSCRIPTEN=1`.
+macro_rules! skip_unless_emscripten_tests {
     () => {
-        if !emcc_available() {
-            eprintln!(
-                "skipping: emcc not found on PATH and $EMSDK is unset. \
-                 Install emsdk and `source emsdk_env.sh` to enable these tests."
-            );
+        if std::env::var("WASM_PACK_TEST_EMSCRIPTEN").as_deref() != Ok("1") {
+            eprintln!("skipping: set WASM_PACK_TEST_EMSCRIPTEN=1 to enable emscripten tests.");
             return;
         }
     };
@@ -146,7 +135,7 @@ fn assert_module_runs_in_node(pkg_dir: &Path, module_name: &str) {
 /// fixture's lockfile, downloads the matching `wasm-bindgen` CLI from
 /// crates.io's release artifacts, and puts it on `PATH` for emcc.
 fn run_build_and_smoke(target: &str) {
-    skip_without_emcc!();
+    skip_unless_emscripten_tests!();
     let fixture = utils::fixture::emscripten_hello_world();
     // TODO: drop `--dev` (and bump the fixture pin) once a wasm-bindgen
     // release ships wasm-bindgen#5270. Before it, the emscripten glue reads
@@ -186,7 +175,7 @@ fn emscripten_build_deno() {
 
 #[test]
 fn emscripten_build_module_uses_source_phase_imports() {
-    skip_without_emcc!();
+    skip_unless_emscripten_tests!();
     let fixture = utils::fixture::emscripten_hello_world();
     fixture
         .wasm_pack()
@@ -212,7 +201,7 @@ fn emscripten_build_module_uses_source_phase_imports() {
 
 #[test]
 fn emscripten_build_no_modules_is_rejected() {
-    skip_without_emcc!();
+    skip_unless_emscripten_tests!();
     let fixture = utils::fixture::emscripten_hello_world();
     fixture
         .wasm_pack()
@@ -229,7 +218,7 @@ fn emscripten_build_no_modules_is_rejected() {
 
 #[test]
 fn emscripten_package_json_points_at_js() {
-    skip_without_emcc!();
+    skip_unless_emscripten_tests!();
     let fixture = utils::fixture::emscripten_hello_world();
     fixture
         .wasm_pack()

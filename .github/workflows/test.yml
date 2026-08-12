@@ -90,3 +90,4 @@ jobs:
         run: "cargo test --test all emscripten:: --locked -- --test-threads=1"
         env:
           RUST_BACKTRACE: 1
+          WASM_PACK_TEST_EMSCRIPTEN: "1"
