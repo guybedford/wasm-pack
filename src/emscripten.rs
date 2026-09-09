@@ -7,10 +7,8 @@
 //!   2. `$EMSDK` pointing at an installed + activated emsdk.
 //!   3. `~/emsdk` (the conventional install location).
 //!   4. A wasm-pack-managed install in the wasm-pack cache.
-//!   5. With installation permitted (and confirmed on a tty), install into
-//!      the wasm-pack cache: the pinned emsdk release for the
-//!      LLVM/binaryen/node toolchain, plus emscripten `main` (carrying the
-//!      post-link `-sWASM_BINDGEN` support) overlaid on top.
+//!   5. With installation permitted (and confirmed on a tty), install the
+//!      pinned emsdk SDK into the wasm-pack cache.
 //!
 //! All environment adjustments are process-scoped: they apply only to the
 //! `cargo` child wasm-pack spawns, so no shell activation (`emsdk_env.sh`)
@@ -22,18 +20,18 @@ use binary_install::Cache;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The pinned emsdk release installed into the wasm-pack cache. Supplies
-/// LLVM, binaryen, node, and (on Windows) python.
-const EMSDK_VERSION: &str = "6.0.9";
+/// The emsdk checkout driving the install.
+const EMSDK_REF: &str = "6.0.9";
 
-/// The emscripten branch carrying post-link `-sWASM_BINDGEN` support
-/// (emscripten-core/emscripten#27208), overlaid on the emsdk toolchain.
-// TODO: drop the overlay once emscripten 6.0.10 is tagged and available via
-// emsdk; the emsdk toolchain then serves emcc directly.
-const EMSCRIPTEN_OVERLAY_REPO: &str = "https://github.com/emscripten-core/emscripten";
-const EMSCRIPTEN_OVERLAY_BRANCH: &str = "main";
+/// The SDK `emsdk install` fetches into the wasm-pack cache: LLVM, binaryen,
+/// emscripten, node, and (on Windows) python, all prebuilt from one
+/// emscripten-releases revision. Either a release version or an
+/// emscripten-releases commit hash (a tip-of-tree build).
+// TODO: switch to "6.0.10" once tagged; this tot build carries the post-link
+// `-sWASM_BINDGEN` support (emscripten-core/emscripten#27208) it will ship.
+const EMSDK_SDK: &str = "dc4dcf8e7b4ef9ed84c8b72e73ec1d1c3714ea31";
 
-/// Stamp file marking a completed install phase.
+/// Stamp file marking a completed install.
 const READY_STAMP: &str = ".wasm-pack-ready";
 
 /// Environment adjustments for spawning `cargo` such that rustc can drive
@@ -60,16 +58,15 @@ pub fn ensure_emcc(cache: &Cache, install_permitted: bool) -> Result<EmccEnv> {
         .into_iter()
         .chain(dirs::home_dir().map(|home| home.join("emsdk")));
     for dir in candidates {
-        if let Some(env) = emsdk_env(&dir, None) {
+        if let Some(env) = emsdk_env(&dir) {
             PBAR.info(&format!("Using the Emscripten SDK at {}", dir.display()));
             return Ok(env);
         }
     }
 
     // 4. / 5. The wasm-pack-managed install.
-    let emsdk_dir = cache.join(Path::new(&format!("emsdk-{}", EMSDK_VERSION)));
-    let overlay_dir = cache.join(Path::new("emscripten-wasm-bindgen"));
-    if !is_ready(&emsdk_dir, &overlay_dir) {
+    let emsdk_dir = cache.join(Path::new(&format!("emsdk-{}", EMSDK_SDK)));
+    if !emsdk_ready(&emsdk_dir) {
         if !install_permitted {
             bail!(
                 "Targeting wasm32-unknown-emscripten requires `emcc` (the Emscripten \
@@ -79,9 +76,9 @@ pub fn ensure_emcc(cache: &Cache, install_permitted: bool) -> Result<EmccEnv> {
             );
         }
         confirm_install()?;
-        install(&emsdk_dir, &overlay_dir)?;
+        install(&emsdk_dir)?;
     }
-    emsdk_env(&emsdk_dir, Some(&overlay_dir)).ok_or_else(|| {
+    emsdk_env(&emsdk_dir).ok_or_else(|| {
         anyhow!(
             "the emsdk install at {} is not usable; delete it to reinstall",
             emsdk_dir.display()
@@ -89,18 +86,10 @@ pub fn ensure_emcc(cache: &Cache, install_permitted: bool) -> Result<EmccEnv> {
     })
 }
 
-/// Whether the wasm-pack-managed install previously completed. Checked
-/// per phase (stamp plus key artifact) so a broken phase re-installs.
-fn is_ready(emsdk_dir: &Path, overlay_dir: &Path) -> bool {
-    emsdk_ready(emsdk_dir) && overlay_ready(overlay_dir)
-}
-
+/// Whether the wasm-pack-managed install previously completed (stamp plus
+/// key artifact, so a broken install re-runs).
 fn emsdk_ready(emsdk_dir: &Path) -> bool {
     emsdk_dir.join(READY_STAMP).exists() && emsdk_dir.join(".emscripten").exists()
-}
-
-fn overlay_ready(overlay_dir: &Path) -> bool {
-    overlay_dir.join(READY_STAMP).exists() && has_emcc(overlay_dir)
 }
 
 /// Whether `dir` contains the emcc entry point rustc will invoke as the
@@ -114,18 +103,13 @@ fn has_emcc(dir: &Path) -> bool {
     }
 }
 
-/// Build the child-process environment for an emsdk directory, with the
-/// emcc directory being either the overlay checkout (wasm-pack-managed
-/// installs) or emsdk's own bundled emscripten (user installs).
-fn emsdk_env(emsdk_dir: &Path, overlay_dir: Option<&Path>) -> Option<EmccEnv> {
+/// Build the child-process environment for an activated emsdk directory.
+fn emsdk_env(emsdk_dir: &Path) -> Option<EmccEnv> {
     let config = emsdk_dir.join(".emscripten");
     if !config.exists() {
         return None;
     }
-    let emcc_dir = match overlay_dir {
-        Some(dir) => dir.to_path_buf(),
-        None => emsdk_dir.join("upstream").join("emscripten"),
-    };
+    let emcc_dir = emsdk_dir.join("upstream").join("emscripten");
     if !has_emcc(&emcc_dir) {
         return None;
     }
@@ -178,8 +162,8 @@ fn config_tool_path(emsdk_dir: &Path, config: &Path, key: &str) -> Option<PathBu
 /// a notice) when unattended, so CI proceeds unprompted.
 fn confirm_install() -> Result<()> {
     let msg = format!(
-        "wasm-pack can install the Emscripten SDK {} into its cache (a one-time ~1.3 GB download)",
-        EMSDK_VERSION
+        "wasm-pack can install the Emscripten SDK ({}) into its cache (a one-time ~1.3 GB download)",
+        EMSDK_SDK
     );
     if !console::user_attended() {
         PBAR.info(&format!("{}; installing...", msg));
@@ -203,75 +187,33 @@ fn manual_install_instructions() -> String {
         "To install manually:\n\n\
          \tgit clone https://github.com/emscripten-core/emsdk\n\
          \tcd emsdk\n\
-         \t./emsdk install {version}\n\
-         \t./emsdk activate {version}\n\
-         \tsource ./emsdk_env.sh\n\n\
-         plus, until emscripten 6.0.10 ships, the emscripten branch carrying \
-         post-link -sWASM_BINDGEN support (see the wasm-pack emscripten docs):\n\n\
-         \tgit clone -b {branch} {repo}\n\
-         \tcd emscripten && ./bootstrap\n",
-        version = EMSDK_VERSION,
-        branch = EMSCRIPTEN_OVERLAY_BRANCH,
-        repo = EMSCRIPTEN_OVERLAY_REPO,
+         \t./emsdk install {sdk}\n\
+         \t./emsdk activate {sdk}\n\
+         \tsource ./emsdk_env.sh\n",
+        sdk = EMSDK_SDK,
     )
 }
 
-/// Install the pinned emsdk plus the emscripten overlay into the cache.
-/// Idempotent: each phase is stamped and re-run from scratch if incomplete.
-fn install(emsdk_dir: &Path, overlay_dir: &Path) -> Result<()> {
+/// Install the pinned emsdk SDK into the cache. Idempotent: stamped on
+/// completion and re-run from scratch if incomplete.
+fn install(emsdk_dir: &Path) -> Result<()> {
     let python = python_bin()?;
-
-    if !emsdk_ready(emsdk_dir) {
-        clone_fresh(
-            "https://github.com/emscripten-core/emsdk",
-            EMSDK_VERSION,
-            emsdk_dir,
-        )?;
-        PBAR.info("Installing the Emscripten toolchain (this downloads ~1.3 GB)...");
-        for step in ["install", "activate"] {
-            let mut cmd = Command::new(&python);
-            cmd.arg(emsdk_dir.join("emsdk.py"))
-                .arg(step)
-                .arg(EMSDK_VERSION)
-                .current_dir(emsdk_dir);
-            crate::child::run(cmd, "emsdk")
-                .with_context(|| format!("running `emsdk {} {}`", step, EMSDK_VERSION))?;
-        }
-        std::fs::write(emsdk_dir.join(READY_STAMP), "")?;
-    }
-
-    if !overlay_ready(overlay_dir) {
-        clone_fresh(
-            EMSCRIPTEN_OVERLAY_REPO,
-            EMSCRIPTEN_OVERLAY_BRANCH,
-            overlay_dir,
-        )?;
-        PBAR.info("Bootstrapping emscripten...");
-        // npm (from the emsdk's node) must be resolvable for bootstrap.
-        let config = emsdk_dir.join(".emscripten");
-        let node_path_env = config_tool_path(emsdk_dir, &config, "NODE_JS")
-            .and_then(|node| node.parent().map(Path::to_path_buf))
-            .map(|node_bin| -> Result<_> {
-                let path_var = std::env::var_os("PATH").unwrap_or_default();
-                let paths = std::iter::once(node_bin)
-                    .chain(std::env::split_paths(&path_var))
-                    .collect::<Vec<_>>();
-                Ok(std::env::join_paths(paths)?)
-            })
-            .transpose()?;
+    clone_fresh(
+        "https://github.com/emscripten-core/emsdk",
+        EMSDK_REF,
+        emsdk_dir,
+    )?;
+    PBAR.info("Installing the Emscripten toolchain (this downloads ~1.3 GB)...");
+    for step in ["install", "activate"] {
         let mut cmd = Command::new(&python);
-        cmd.arg(overlay_dir.join("bootstrap.py"))
-            .current_dir(overlay_dir);
-        // rustc invokes the linker as `emcc.bat` on Windows; without this,
-        // bootstrap generates pylauncher `.exe` entry points instead.
-        cmd.env("EM_USE_BAT_FILES", "1");
-        if let Some(path_env) = &node_path_env {
-            cmd.env("PATH", path_env);
-        }
-        crate::child::run(cmd, "bootstrap").context("bootstrapping the emscripten checkout")?;
-        std::fs::write(overlay_dir.join(READY_STAMP), "")?;
+        cmd.arg(emsdk_dir.join("emsdk.py"))
+            .arg(step)
+            .arg(EMSDK_SDK)
+            .current_dir(emsdk_dir);
+        crate::child::run(cmd, "emsdk")
+            .with_context(|| format!("running `emsdk {} {}`", step, EMSDK_SDK))?;
     }
-
+    std::fs::write(emsdk_dir.join(READY_STAMP), "")?;
     PBAR.info("Emscripten toolchain installed.");
     Ok(())
 }
@@ -294,7 +236,7 @@ fn clone_fresh(repo: &str, git_ref: &str, dir: &Path) -> Result<()> {
         .with_context(|| format!("cloning {} (is `git` installed and on PATH?)", repo))
 }
 
-/// A python interpreter for driving emsdk.py / bootstrap.py.
+/// A python interpreter for driving emsdk.py.
 fn python_bin() -> Result<PathBuf> {
     which::which("python3")
         .or_else(|_| which::which("python"))

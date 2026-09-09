@@ -54,9 +54,8 @@ own emcc settings (e.g. `-sSTACK_SIZE=8MB`, `-sALLOW_MEMORY_GROWTH`) under
 
 > **Toolchain status:** the post-link `-sWASM_BINDGEN` support the
 > cargo-driven flow relies on ([emscripten#27208]) has landed on emscripten
-> `main` and will ship in emscripten 6.0.10. Until that release is available
-> via emsdk, wasm-pack's auto-installed toolchain overlays emscripten `main`
-> on top of an emsdk install.
+> `main` and will ship in emscripten 6.0.10. Until then, wasm-pack's
+> auto-installed toolchain is a pinned emsdk tip-of-tree build.
 
 [emscripten#27208]: https://github.com/emscripten-core/emscripten/pull/27208
 
@@ -72,9 +71,8 @@ needed. An existing toolchain is preferred when present, checked in order:
 3. an activated emsdk at `~/emsdk`
 4. the wasm-pack-managed install
 
-Note that until emscripten 6.0.10 ships, a stock emsdk toolchain (options
-1–3) needs emscripten `main` overlaid on top (or `./emsdk install tot`); the
-wasm-pack-managed install includes it.
+Note that until emscripten 6.0.10 ships, a user-provided toolchain (options
+1–3) needs to be a tip-of-tree build (`./emsdk install tot`).
 
 Your crate needs `wasm-bindgen >= 0.2.122`, which ships the emscripten
 output mode and the marker section.
