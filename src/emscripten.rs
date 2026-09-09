@@ -42,6 +42,9 @@ pub struct EmccEnv {
     pub path_prepends: Vec<PathBuf>,
     /// Extra environment variables (`EM_CONFIG`, `EMSDK`).
     pub vars: Vec<(&'static str, PathBuf)>,
+    /// The emcc entry point to pass as `-Clinker`, when resolved from an
+    /// emsdk rather than left to rustc's default PATH lookup.
+    pub linker: Option<PathBuf>,
 }
 
 /// Locate `emcc`, installing the toolchain into the wasm-pack cache if
@@ -92,15 +95,16 @@ fn emsdk_ready(emsdk_dir: &Path) -> bool {
     emsdk_dir.join(READY_STAMP).exists() && emsdk_dir.join(".emscripten").exists()
 }
 
-/// Whether `dir` contains the emcc entry point rustc will invoke as the
-/// linker (`emcc.bat` on Windows — rustc hardcodes the name — `emcc`
-/// elsewhere).
-fn has_emcc(dir: &Path) -> bool {
-    if cfg!(windows) {
-        dir.join("emcc.bat").exists()
+/// The emcc entry point in `dir`. Passed to rustc explicitly because its
+/// default linker name on Windows is `emcc.bat`, whereas prebuilt SDKs ship
+/// a pylauncher `emcc.exe` (`.bat` entry points are opt-in at bootstrap).
+fn emcc_entry_point(dir: &Path) -> Option<PathBuf> {
+    let names: &[&str] = if cfg!(windows) {
+        &["emcc.bat", "emcc.exe"]
     } else {
-        dir.join("emcc").exists()
-    }
+        &["emcc"]
+    };
+    names.iter().map(|name| dir.join(name)).find(|p| p.exists())
 }
 
 /// Build the child-process environment for an activated emsdk directory.
@@ -110,9 +114,7 @@ fn emsdk_env(emsdk_dir: &Path) -> Option<EmccEnv> {
         return None;
     }
     let emcc_dir = emsdk_dir.join("upstream").join("emscripten");
-    if !has_emcc(&emcc_dir) {
-        return None;
-    }
+    let linker = emcc_entry_point(&emcc_dir)?;
     let mut path_prepends = vec![emcc_dir];
     let mut vars = vec![
         ("EM_CONFIG", config.clone()),
@@ -125,8 +127,8 @@ fn emsdk_env(emsdk_dir: &Path) -> Option<EmccEnv> {
             if let Some(bin_dir) = tool.parent() {
                 path_prepends.push(bin_dir.to_path_buf());
             }
-            // The emcc.bat/run_python launchers resolve python via
-            // EMSDK_PYTHON before falling back to PATH.
+            // The emcc launchers resolve python via EMSDK_PYTHON before
+            // falling back to PATH.
             if key == "PYTHON" {
                 vars.push(("EMSDK_PYTHON", tool));
             }
@@ -135,6 +137,7 @@ fn emsdk_env(emsdk_dir: &Path) -> Option<EmccEnv> {
     Some(EmccEnv {
         path_prepends,
         vars,
+        linker: Some(linker),
     })
 }
 

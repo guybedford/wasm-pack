@@ -271,6 +271,9 @@ pub fn cargo_rustc_emscripten(
     cmd.args(absolutize_extra_options(extra_options)?);
     cmd.arg("--message-format=json");
     cmd.arg("--");
+    if let Some(linker) = &emcc_env.linker {
+        cmd.arg(format!("-Clinker={}", linker.display()));
+    }
     cmd.args(link_args);
 
     let mut cargo_process = cmd.stdout(Stdio::piped()).spawn()?;
