@@ -9,8 +9,8 @@
 //!   4. A wasm-pack-managed install in the wasm-pack cache.
 //!   5. With installation permitted (and confirmed on a tty), install into
 //!      the wasm-pack cache: the pinned emsdk release for the
-//!      LLVM/binaryen/node toolchain, plus the emscripten branch carrying
-//!      `-sWASM_BINDGEN=auto` overlaid on top.
+//!      LLVM/binaryen/node toolchain, plus emscripten `main` (carrying the
+//!      post-link `-sWASM_BINDGEN` support) overlaid on top.
 //!
 //! All environment adjustments are process-scoped: they apply only to the
 //! `cargo` child wasm-pack spawns, so no shell activation (`emsdk_env.sh`)
@@ -24,14 +24,14 @@ use std::process::Command;
 
 /// The pinned emsdk release installed into the wasm-pack cache. Supplies
 /// LLVM, binaryen, node, and (on Windows) python.
-const EMSDK_VERSION: &str = "6.0.6";
+const EMSDK_VERSION: &str = "6.0.9";
 
-/// The emscripten branch carrying `-sWASM_BINDGEN=auto`, overlaid on the
-/// emsdk toolchain.
-// TODO: drop the overlay once -sWASM_BINDGEN=auto ships in a tagged
-// emscripten release; the emsdk toolchain then serves emcc directly.
-const EMSCRIPTEN_OVERLAY_REPO: &str = "https://github.com/guybedford/emscripten";
-const EMSCRIPTEN_OVERLAY_BRANCH: &str = "cf";
+/// The emscripten branch carrying post-link `-sWASM_BINDGEN` support
+/// (emscripten-core/emscripten#27208), overlaid on the emsdk toolchain.
+// TODO: drop the overlay once emscripten 6.0.10 is tagged and available via
+// emsdk; the emsdk toolchain then serves emcc directly.
+const EMSCRIPTEN_OVERLAY_REPO: &str = "https://github.com/emscripten-core/emscripten";
+const EMSCRIPTEN_OVERLAY_BRANCH: &str = "main";
 
 /// Stamp file marking a completed install phase.
 const READY_STAMP: &str = ".wasm-pack-ready";
@@ -206,8 +206,8 @@ fn manual_install_instructions() -> String {
          \t./emsdk install {version}\n\
          \t./emsdk activate {version}\n\
          \tsource ./emsdk_env.sh\n\n\
-         plus, until -sWASM_BINDGEN ships in an emscripten release, the branch \
-         adding it (see the wasm-pack emscripten docs):\n\n\
+         plus, until emscripten 6.0.10 ships, the emscripten branch carrying \
+         post-link -sWASM_BINDGEN support (see the wasm-pack emscripten docs):\n\n\
          \tgit clone -b {branch} {repo}\n\
          \tcd emscripten && ./bootstrap\n",
         version = EMSDK_VERSION,

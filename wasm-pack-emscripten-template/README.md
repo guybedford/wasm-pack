@@ -20,7 +20,7 @@ wasm-pack build
 
 The whole build is a single cargo invocation: rustc drives `emcc` as the
 linker, and emcc runs `wasm-bindgen` itself as a post-link step
-(`-sWASM_BINDGEN=auto`). That produces a `pkg/` directory containing:
+(`-sWASM_BINDGEN`). That produces a `pkg/` directory containing:
 
 - `{{project-name}}.js` — self-initializing ES module
 - `{{project-name}}.wasm` — emscripten-linked wasm

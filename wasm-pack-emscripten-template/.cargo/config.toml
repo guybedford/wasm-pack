@@ -3,7 +3,7 @@
 target = "wasm32-unknown-emscripten"
 
 # Codegen settings for all crates in the graph. wasm-pack composes its own
-# emcc link settings (`-sWASM_BINDGEN=auto` etc.) on top of these via
+# emcc link settings (`-sWASM_BINDGEN` etc.) on top of these via
 # `cargo rustc` trailing args, so anything added here is preserved.
 #   * panic=abort — panic=unwind on emscripten needs the wasm-exceptions
 #     toolchain story to settle (wasm-bindgen#5165). Override at your own risk.

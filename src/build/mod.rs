@@ -215,7 +215,7 @@ fn absolutize_extra_options(extra_options: &[String]) -> Result<Vec<String>> {
 /// Run `cargo rustc` for the emscripten target.
 ///
 /// The whole emscripten build is this one cargo invocation: rustc drives
-/// `emcc` as the linker, and the injected `-Clink-arg=-sWASM_BINDGEN=auto`
+/// `emcc` as the linker, and the injected `-Clink-arg=-sWASM_BINDGEN`
 /// makes emcc run `wasm-bindgen` (resolved from `PATH`, hence
 /// `bindgen_dir`) as a post-link step. `cargo rustc` is used rather than
 /// `cargo build` because its trailing flags apply only to the final crate

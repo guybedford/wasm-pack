@@ -27,7 +27,7 @@ for the common case.
 
 The whole build is a single cargo invocation. rustc drives `emcc` as the
 linker for the emscripten target, and wasm-pack injects
-`-sWASM_BINDGEN=auto`, which makes emcc run `wasm-bindgen` itself as a
+`-sWASM_BINDGEN`, which makes emcc run `wasm-bindgen` itself as a
 post-link step — emcc detects the marker section wasm-bindgen embeds when a
 crate is compiled for emscripten, runs the CLI over the linked wasm, and
 integrates the generated bindings into its own JS output.
@@ -38,7 +38,7 @@ wasm-pack's role reduces to:
    putting it on `PATH` for emcc to find.
 2. Running `cargo rustc` with the emcc output-shape settings injected as
    final-crate link args:
-   `-sWASM_BINDGEN=auto -sMODULARIZE=instance -sEXPORT_ES6 -sAUTO_INIT`
+   `-sWASM_BINDGEN -sMODULARIZE=instance -sEXPORT_ES6 -sAUTO_INIT`
    (plus per-`--target` additions, below).
 3. Copying the emitted `.js` + `.wasm` into `pkg/` and writing the
    `package.json`.
@@ -52,14 +52,13 @@ own emcc settings (e.g. `-sSTACK_SIZE=8MB`, `-sALLOW_MEMORY_GROWTH`) under
 `[target.wasm32-unknown-emscripten] rustflags` as
 `"-Clink-arg=-s..."` entries and both sets apply.
 
-> **Toolchain status:** `-sWASM_BINDGEN=auto` has not shipped in a tagged
-> emscripten release yet (initial `-sWASM_BINDGEN` integration landed in
-> [emscripten#23493]; the `auto` marker detection used by the cargo-driven
-> flow is pending). wasm-pack's auto-installed toolchain uses the branch at
-> [guybedford/emscripten#cf](https://github.com/guybedford/emscripten/tree/cf)
-> on top of an emsdk install until it ships.
+> **Toolchain status:** the post-link `-sWASM_BINDGEN` support the
+> cargo-driven flow relies on ([emscripten#27208]) has landed on emscripten
+> `main` and will ship in emscripten 6.0.10. Until that release is available
+> via emsdk, wasm-pack's auto-installed toolchain overlays emscripten `main`
+> on top of an emsdk install.
 
-[emscripten#23493]: https://github.com/emscripten-core/emscripten/pull/23493
+[emscripten#27208]: https://github.com/emscripten-core/emscripten/pull/27208
 
 ## Prerequisites
 
@@ -73,9 +72,9 @@ needed. An existing toolchain is preferred when present, checked in order:
 3. an activated emsdk at `~/emsdk`
 4. the wasm-pack-managed install
 
-Note that until `-sWASM_BINDGEN=auto` ships in an emscripten release, a
-stock emsdk toolchain (options 1–3) needs the branch above overlaid on top;
-the wasm-pack-managed install includes it.
+Note that until emscripten 6.0.10 ships, a stock emsdk toolchain (options
+1–3) needs emscripten `main` overlaid on top (or `./emsdk install tot`); the
+wasm-pack-managed install includes it.
 
 Your crate needs `wasm-bindgen >= 0.2.122`, which ships the emscripten
 output mode and the marker section.

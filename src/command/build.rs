@@ -419,7 +419,7 @@ impl Build {
     /// The step list for `wasm32-unknown-emscripten` builds.
     ///
     /// Emscripten builds are a single `cargo` invocation: rustc drives `emcc`
-    /// as the linker, and `-sWASM_BINDGEN=auto` makes emcc run `wasm-bindgen`
+    /// as the linker, and `-sWASM_BINDGEN` makes emcc run `wasm-bindgen`
     /// itself as a post-link step (detected via the marker section wasm-bindgen
     /// embeds when compiled for emscripten). wasm-pack's remaining job is to
     /// supply a version-matched `wasm-bindgen` on `PATH`, inject the emcc
@@ -626,7 +626,7 @@ impl Build {
         let bindgen_version = lockfile.require_wasm_bindgen()?;
         if self.is_emscripten() {
             // The emscripten output mode (and the marker section emcc's
-            // `-sWASM_BINDGEN=auto` detects) shipped in wasm-bindgen 0.2.122.
+            // `-sWASM_BINDGEN` detects) shipped in wasm-bindgen 0.2.122.
             if let Ok(version) = semver::Version::parse(bindgen_version) {
                 if version < semver::Version::new(0, 2, 122) {
                     bail!(
@@ -694,14 +694,14 @@ impl Build {
 /// The emcc settings wasm-pack injects as final-crate link args.
 ///
 /// These shape the output as a self-initializing ES module with wasm-bindgen
-/// run by emcc itself as a post-link step (`-sWASM_BINDGEN=auto` detects the
+/// run by emcc itself as a post-link step (`-sWASM_BINDGEN` detects the
 /// marker section wasm-bindgen embeds for the emscripten target). Users add
 /// their own settings (e.g. `-sSTACK_SIZE`) via `[target.<triple>] rustflags`
 /// in `.cargo/config.toml`; the two sets compose because these are passed as
 /// `cargo rustc` trailing args rather than through `RUSTFLAGS`.
 fn emscripten_link_args(target: Target) -> Result<Vec<String>> {
     let mut args = vec![
-        "-Clink-arg=-sWASM_BINDGEN=auto".to_string(),
+        "-Clink-arg=-sWASM_BINDGEN".to_string(),
         "-Clink-arg=-sMODULARIZE=instance".to_string(),
         "-Clink-arg=-sEXPORT_ES6".to_string(),
         "-Clink-arg=-sAUTO_INIT".to_string(),

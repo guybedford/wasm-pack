@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 # 0.2.122 is the floor that ships the emscripten output mode and the marker
-# section emcc's `-sWASM_BINDGEN=auto` detects; older releases will produce
+# section emcc's `-sWASM_BINDGEN` detects; older releases will produce
 # broken JS/wasm under the emscripten target.
 wasm-bindgen = "0.2.122"
 

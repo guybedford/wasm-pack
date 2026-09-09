@@ -453,7 +453,7 @@ pub fn emscripten_hello_world() -> Fixture {
     let fixture = Fixture::new();
 
     // The emscripten output mode (and the marker section emcc's
-    // `-sWASM_BINDGEN=auto` detects) landed in wasm-bindgen 0.2.122
+    // `-sWASM_BINDGEN` detects) landed in wasm-bindgen 0.2.122
     // (https://github.com/wasm-bindgen/wasm-bindgen/pull/5156); pin to that
     // release so the descriptor format used by the macro matches the CLI
     // wasm-pack installs from crates.io.
