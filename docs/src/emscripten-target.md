@@ -34,12 +34,16 @@ integrates the generated bindings into its own JS output.
 
 wasm-pack's role reduces to:
 
-1. Installing the `wasm-bindgen` CLI version matching your `Cargo.lock` and
-   putting it on `PATH` for emcc to find.
+1. Installing the `wasm-bindgen` CLI matching your `Cargo.lock` and putting
+   it on `PATH` for emcc to find. For a git `wasm-bindgen` dependency the
+   CLI is built from the same revision.
 2. Running `cargo rustc` with the emcc output-shape settings injected as
    final-crate link args:
    `-sWASM_BINDGEN -sMODULARIZE=instance -sEXPORT_ES6 -sAUTO_INIT`
-   (plus per-`--target` additions, below).
+   (plus per-`--target` additions, below), and
+   `-sWASM_LEGACY_EXCEPTIONS=0 -sBINARYEN_EXTRA_PASSES=--translate-to-exnref`
+   so the output uses standard (exnref) exception handling rather than the
+   legacy instructions rustc's LLVM still emits.
 3. Copying the emitted `.js` + `.wasm` into `pkg/` and writing the
    `package.json`.
 

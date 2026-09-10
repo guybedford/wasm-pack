@@ -701,6 +701,14 @@ fn emscripten_link_args(target: Target) -> Result<Vec<String>> {
         "-Clink-arg=-sMODULARIZE=instance".to_string(),
         "-Clink-arg=-sEXPORT_ES6".to_string(),
         "-Clink-arg=-sAUTO_INIT".to_string(),
+        // Standard (exnref) exception handling, matching wasm-bindgen's own
+        // `-Cpanic=unwind` output. rustc's LLVM still emits the legacy
+        // instructions, so binaryen translates them at link.
+        "-Clink-arg=-sWASM_LEGACY_EXCEPTIONS=0".to_string(),
+        // TODO: drop `--strip-dwarf` once wasm-bindgen ships walrus#323;
+        // until then binaryen's DWARF update aborts on wasm-bindgen output
+        // under `-g`.
+        "-Clink-arg=-sBINARYEN_EXTRA_PASSES=--strip-dwarf,--translate-to-exnref".to_string(),
     ];
     match target {
         Target::Nodejs => args.push("-Clink-arg=-sENVIRONMENT=node".to_string()),

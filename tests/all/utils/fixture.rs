@@ -452,11 +452,11 @@ pub fn js_hello_world() -> Fixture {
 pub fn emscripten_hello_world() -> Fixture {
     let fixture = Fixture::new();
 
-    // The emscripten output mode (and the marker section emcc's
-    // `-sWASM_BINDGEN` detects) landed in wasm-bindgen 0.2.122
-    // (https://github.com/wasm-bindgen/wasm-bindgen/pull/5156); pin to that
-    // release so the descriptor format used by the macro matches the CLI
-    // wasm-pack installs from crates.io.
+    // Pinned to a wasm-bindgen branch rather than a release: the `.debug_loc`
+    // fix (walrus 0.27.1, wasm-bindgen#5328) hasn't shipped yet. wasm-pack
+    // builds the matching CLI from the same revision. `js-sys` comes from the
+    // same source so the graph has a single `wasm-bindgen`.
+    // TODO: switch back to a release pin once one includes wasm-bindgen#5328.
     //
     // A `bin` crate: rustc links emscripten executables through emcc as the
     // main module. The explicit bin name keeps the emitted `.js` and `.wasm`
@@ -476,8 +476,8 @@ name = "em_hello_world"
 path = "src/main.rs"
 
 [dependencies]
-wasm-bindgen = "=0.2.126"
-js-sys = "0.3"
+wasm-bindgen = { git = "https://github.com/wasm-bindgen/wasm-bindgen", branch = "gbedford/walrus-0.27.1" }
+js-sys = { git = "https://github.com/wasm-bindgen/wasm-bindgen", branch = "gbedford/walrus-0.27.1" }
 "#;
 
     fixture
