@@ -3,7 +3,7 @@
 use crate::build;
 use crate::cache;
 use crate::command::utils::get_crate_path;
-use crate::install::{self, InstallMode, Tool};
+use crate::install::{self, InstallMode};
 use crate::lockfile::Lockfile;
 use crate::manifest;
 use crate::test::{self, webdriver};
@@ -335,7 +335,7 @@ impl Test {
     fn step_install_wasm_bindgen(&mut self) -> Result<()> {
         info!("Identifying wasm-bindgen dependency...");
         let lockfile = Lockfile::new(&self.crate_data)?;
-        let bindgen_version = lockfile.require_wasm_bindgen()?;
+        lockfile.require_wasm_bindgen()?;
 
         // Unlike `wasm-bindgen` and `wasm-bindgen-cli`, `wasm-bindgen-test`
         // will work with any semver compatible `wasm-bindgen-cli`, so just make
@@ -351,12 +351,8 @@ impl Test {
             )
         }
 
-        let status = install::download_prebuilt_or_cargo_install(
-            Tool::WasmBindgen,
-            &self.cache,
-            &bindgen_version,
-            self.mode.install_permitted(),
-        )?;
+        let status =
+            install::wasm_bindgen_cli(&self.cache, &lockfile, self.mode.install_permitted())?;
 
         self.test_runner_path = match status {
             install::Status::Found(dl) => Some(dl.binary("wasm-bindgen-test-runner")?),

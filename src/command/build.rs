@@ -639,12 +639,8 @@ impl Build {
             }
         }
         info!("Installing wasm-bindgen-cli...");
-        let bindgen = install::download_prebuilt_or_cargo_install(
-            Tool::WasmBindgen,
-            &self.cache,
-            bindgen_version,
-            self.mode.install_permitted(),
-        )?;
+        let bindgen =
+            install::wasm_bindgen_cli(&self.cache, &lockfile, self.mode.install_permitted())?;
         self.bindgen = Some(bindgen);
         info!("Installing wasm-bindgen-cli was successful.");
         Ok(())
