@@ -452,7 +452,7 @@ pub fn js_hello_world() -> Fixture {
 pub fn emscripten_hello_world() -> Fixture {
     let fixture = Fixture::new();
 
-    // Pinned to a wasm-bindgen branch rather than a release: the DWARF fixes
+    // Pinned to wasm-bindgen main rather than a release: the DWARF fixes
     // emcc's `wasm-opt -g` needs (walrus 0.27.2, wasm-bindgen#5328) haven't
     // shipped yet. wasm-pack builds the matching CLI from the same revision.
     // `js-sys` comes from the same source so the graph has a single
@@ -477,8 +477,8 @@ name = "em_hello_world"
 path = "src/main.rs"
 
 [dependencies]
-wasm-bindgen = { git = "https://github.com/wasm-bindgen/wasm-bindgen", branch = "gbedford/walrus-0.27.1" }
-js-sys = { git = "https://github.com/wasm-bindgen/wasm-bindgen", branch = "gbedford/walrus-0.27.1" }
+wasm-bindgen = { git = "https://github.com/wasm-bindgen/wasm-bindgen", branch = "main" }
+js-sys = { git = "https://github.com/wasm-bindgen/wasm-bindgen", branch = "main" }
 "#;
 
     fixture
